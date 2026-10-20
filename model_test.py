@@ -1,7 +1,8 @@
 import pandas as pd;
 from os import path, getcwd;
 from sys import argv;
-from importlib import import_module;
+from math import ceil;
+
 from progress.bar import IncrementalBar;
 from progress.spinner import Spinner;
 
@@ -13,8 +14,24 @@ def getTestDataset(filepath: str, head_count: int = 5) -> pd.DataFrame:
 	# Returns a subset of the dataset, containing only
 	# the columns containing review test and the score
 	# --------------------------------------------------
-	test_data: pd.DataFrame = pd.read_csv(filepath).set_index("Id").sort_index().truncate(after=head_count);
-#	test_data = test_data.truncate(after=head_count);
+	# The subset dataset is generated from the complete
+	# test dataset, by first grouping by score and then
+	# sampling ceil(head_count / 5) rows from each
+	# group. This way the subset dataset will always
+	# have data that is approximately balanced in terms
+	# of the score, i.e., the number of rows that have
+	# a score of 1, and the number of rows that have a
+	# score of say, 5, will be almost equal
+	# --------------------------------------------------
+
+	test_data: pd.DataFrame = pd.read_csv(filepath) \
+								.set_index("Id") \
+								.groupby("Score") \
+								.sample(n=ceil(head_count / 5), random_state=42) \
+								.sample(frac=1, random_state=42) \
+								.head(head_count) \
+								.sort_index();
+
 	test_data_filt_cols: pd.DataFrame = test_data[["Text", "Score"]];
 	for row in test_data_filt_cols.itertuples():
 		test_data_filt_cols.at[row.Index, "Score"] = int(row.Score);
