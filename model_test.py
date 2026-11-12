@@ -48,27 +48,35 @@ def processModelResponse(response: list[dict]) -> dict:
 		"confidence": round(float(response[0]["score"]), 4)
 	};
 
-def performTest(test_data: pd.DataFrame, mp: ModelPipeline, head_length: int = 5) -> None:
+def performTest(test_data: pd.DataFrame, mp: ModelPipeline, prefix: str, head_length: int = 5) -> None:
 	# Passed test data to the model and attaches the
 	# results to the test data data frame
 	# --------------------------------------------------
+	# prefix is prepended to every result column name,
+	# so that results from different models (e.g.,
+	# "Orig" and "Quant") can live side by side in the
+	# same data frame
+	# --------------------------------------------------
 
-	with IncrementalBar("Performing test", max=head_length) as bar:
+	with IncrementalBar(f"Testing {prefix} model", max=head_length) as bar:
 		for row in test_data.head(head_length).itertuples():
 			result: dict = processModelResponse(mp.pipe(row.Text[:512:]));
-			test_data.at[row.Index, "PredictedScore"] = result["score"];
-			test_data.at[row.Index, "Confidence"] = result["confidence"];
-			test_data.at[row.Index, "ScoreDiff"] = int(result["score"] - row.Score);
-			test_data.at[row.Index, "AbsScoreDiff"] = abs(int(result["score"] - row.Score));
-			test_data.at[row.Index, "LargeAbsDiff"] = abs(int(result["score"] - row.Score)) >= 2;
+			test_data.at[row.Index, f"{prefix}PredictedScore"] = result["score"];
+			test_data.at[row.Index, f"{prefix}Confidence"] = result["confidence"];
+			test_data.at[row.Index, f"{prefix}ScoreDiff"] = int(result["score"] - row.Score);
+			test_data.at[row.Index, f"{prefix}AbsScoreDiff"] = abs(int(result["score"] - row.Score));
+			test_data.at[row.Index, f"{prefix}LargeAbsDiff"] = abs(int(result["score"] - row.Score)) >= 2;
 			bar.next();
+
 def main():
 	HEAD_LENGTH: int = int(argv[1]);
 	print("Creating subset dataset...");
 	test_data: pd.DataFrame = getTestDataset(path.abspath(ROOT_DIR + "/datasets/test/reviews.csv"), HEAD_LENGTH);
-	print("Loading model...");
+	print("Loading models...");
 	mp: ModelPipeline = ModelPipeline(path.abspath(ROOT_DIR + "/model"));
-	performTest(test_data, mp, HEAD_LENGTH);
+	mp_q: ModelPipeline = ModelPipeline(path.abspath(ROOT_DIR + "/model"), True);
+	performTest(test_data, mp, "Orig", HEAD_LENGTH);
+	performTest(test_data, mp_q, "Quant", HEAD_LENGTH);
 	print("Writing results to file...");
 	test_data.to_csv(path.abspath(ROOT_DIR + "/datasets/test_results.csv"));
 #	for row in test_data.head(HEAD_COUNT).itertuples():
