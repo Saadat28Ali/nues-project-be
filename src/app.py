@@ -4,7 +4,8 @@ from flask_cors import CORS;
 from check_model_exists import checkModelExists;
 from download_model import downloadModel;
 from run_model import ModelPipeline;
-from quantize_model import quantizeModel;
+#from quantize_model import quantizeModel;
+from clone_quantized import cloneQuantized;
 
 app = Flask(__name__);
 CORS(app);
@@ -17,8 +18,9 @@ def templateResponse(success: bool = False, msg: str = "", details: dict = {}):
 	};
 
 if not checkModelExists():
-	downloadModel();
-	quantizeModel();
+#	downloadModel();
+#	quantizeModel();
+	cloneQuantized();
 
 # mp: ModelPipeline = ModelPipeline();
 mp_q: ModelPipeline = ModelPipeline(quantized = True);
